@@ -115,78 +115,32 @@ class Person:
         self._age = age
         self._knows = knows  # This can be another Person instance or a list of Persons
         self._interests = interests  # This can be a list of interests (literal values)
-
-    # Getter and Setter for first_name
+    
+    # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/firstName", is_literal=True)
     def first_name(self):
         return self._first_name
-
-    @first_name.setter
-    def first_name(self, value):
-        self._first_name = value
-
-    # Getter and Setter for last_name
+    
+    # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/lastName", is_literal=True)
     def last_name(self):
         return self._last_name
-
-    @last_name.setter
-    def last_name(self, value):
-        self._last_name = value
-
-    # Getter and Setter for age
+    
+    # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/age", is_literal=True)
     def age(self):
         return self._age
-
-    @age.setter
-    def age(self, value):
-        self._age = value
-
-    # Getter and Setter for knows (object relationship)
+    
+    # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/knows", is_literal=False)
     def knows(self):
         return self._knows
-
-    @knows.setter
-    def knows(self, value):
-        self._knows = value
-
-    # Getter and Setter for interests with terminology mapping
+    
+    # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/interest", is_literal=False)
     def interests(self):
         # return self._interests
         return [INTEREST_MAPPINGS.get(value, value) for value in self._interests]
-
-    @interests.setter
-    def interests(self, values):
-        # Map local interest values to standardized codes using INTEREST_MAPPINGS
-        self._interests = values
-
-@rdf_class(rdf_type="http://example.org/schema/Product", uri_template="http://example.org/product/{id}")
-class Product:
-    def __init__(self, id, name, price):
-        self.id = id
-        self._name = name
-        self._price = price
-
-    # Getter and Setter for name
-    @rdf_property("http://schema.org/name", is_literal=True)
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-
-    # Getter and Setter for price
-    @rdf_property("http://schema.org/price", is_literal=True)
-    def price(self):
-        return self._price
-
-    @price.setter
-    def price(self, value):
-        self._price = value
 
 # Test with Person knowing another Person and having multiple interests
 person1 = Person(id="123", first_name="John", last_name="Doe", age=30, interests=["Reading", "Hiking"])
