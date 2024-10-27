@@ -1,6 +1,7 @@
 import re
 from rdflib import Graph, URIRef, Literal
 from rdflib.namespace import RDF
+from pydantic import BaseModel
 
 # Decorator for classes to define rdf:type and URI template
 def rdf_class(rdf_type, uri_template):
@@ -72,7 +73,7 @@ def object_to_rdf(obj, base_uri="http://example.org/"):
         # Check if this attribute has an RDF predicate defined via annotation
         if hasattr(attr_method, '_rdf_predicate') and attr_value is not None:
             predicate = URIRef(attr_method._rdf_predicate)  # RDF predicate from annotation
-            
+
             # Handle cases where the attribute value is a list
             if isinstance(attr_value, list):
                 for item in attr_value:
@@ -109,36 +110,36 @@ INTEREST_MAPPINGS = {
 @rdf_class(rdf_type="http://xmlns.com/foaf/0.1/Person", uri_template="http://example.org/person/{id}-{first_name}")
 class Person:
     def __init__(self, id, first_name, last_name, age=None, knows=None, interests=None):
-        self.id = id
-        self._first_name = first_name
-        self._last_name = last_name
-        self._age = age
-        self._knows = knows  # This can be another Person instance or a list of Persons
-        self._interests = interests  # This can be a list of interests (literal values)
+        self.id: int = id
+        self._first_name: str = first_name
+        self._last_name: str = last_name
+        self._age: int = age
+        self._knows: list['Person'] = knows
+        self._interests: list[str] = interests
     
     # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/firstName", is_literal=True)
-    def first_name(self):
+    def first_name(self) -> str:
         return self._first_name
     
     # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/lastName", is_literal=True)
-    def last_name(self):
+    def last_name(self) -> str:
         return self._last_name
     
     # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/age", is_literal=True)
-    def age(self):
+    def age(self) -> int:
         return self._age
     
     # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/knows", is_literal=False)
-    def knows(self):
+    def knows(self) -> list['Person']:
         return self._knows
     
     # Getter
     @rdf_property("http://xmlns.com/foaf/0.1/interest", is_literal=False)
-    def interests(self):
+    def interests(self) -> list[str]:
         # return self._interests
         return [INTEREST_MAPPINGS.get(value, value) for value in self._interests]
 
