@@ -2,97 +2,77 @@ import re
 from rdflib import Graph, URIRef, Literal
 from rdflib.namespace import RDF
 
-# Decorator for classes to define rdf:type and URI template
-def rdf_class(rdf_type, uri_template):
-    def decorator(cls):
-        cls._rdf_type = rdf_type  # Set the rdf:type
-        cls._uri_template = uri_template  # Set the URI template
-        return cls
-    return decorator
+def generate_class_instance_uri(uri_template, class_instance) -> URIRef:
+    """
+    This function generates a URI for a class instance based on a URI template.
 
-# Decorator for attributes to define the RDF predicate and type (literal, object, or list)
-def rdf_property(predicate, is_literal=True):
-    def decorator(func):
-        func._rdf_predicate = predicate  # Store the RDF predicate
-        func._is_literal = is_literal  # Store whether it's a literal or object
-        return property(func)
-    return decorator
+    Args:
+        uri_template: A URI template string.
+        class_instance: A Python class object.
 
-# Helper function to recursively fetch property values
-def get_property_value(obj, property_chain):
-    """Recursively fetch the value of a property chain (e.g., 'knows.id')."""
-    properties = property_chain.split('.')
-    current_value = obj
-    for prop in properties:
-        current_value = getattr(current_value, prop, None)
-        if current_value is None:
-            break
-    return current_value
+    Returns:
+        A URIRef object representing the URI of the class instance.
+    """
+    # uri_template = class_spec['uri_template']
+    variables = re.findall(r'\{(\w+)\}', uri_template)
+    uri_values = {var: getattr(class_instance, var) for var in variables}
+    class_uri = URIRef(uri_template.format(**uri_values))
+    return class_uri
 
-# Dynamic URI generation based on template
-def build_uri_from_template(obj, uri_template):
-    """Build a URI dynamically based on the object's properties and URI template."""
-    pattern = re.compile(r'\{([^\}]+)\}')  # Match placeholders like {property}
+def class_to_rdf(class_instance, specification, g=Graph()) -> Graph:
+    """
+    This function reads the properties of a class instance and converts them to RDF triples.
+
+    Args:
+        class_instance: An instance of a class with RDF annotations.
+
+    Returns:
+        A Graph object containing the RDF triples.
+    """
+    print("==============================")
+    print("class_instance: ", class_instance)
+    # add all namespaces
+    for prefix, uri in specification['namespaces'].items():
+        g.bind(prefix, URIRef(uri))
+
+    class_name = class_instance.__class__.__name__
+    class_spec = specification['classes'][class_name]
+
+    instance_uri = generate_class_instance_uri(class_spec['uri_template'], class_instance)
+
+    # Check if the instance already exists in the graph
+    if (instance_uri, RDF.type, URIRef(class_spec['rdf_type'])) in g:
+        return g
     
-    def replace_placeholder(match):
-        property_chain = match.group(1)
-        value = get_property_value(obj, property_chain)
-        return str(value) if value else ''  # Convert the property value to a string
-    
-    # Replace each placeholder with the actual property value
-    if uri_template is None:
-        uri = obj
-    else:
-        uri = pattern.sub(replace_placeholder, uri_template)
-    return uri
+    g.add((instance_uri, RDF.type, URIRef(class_spec['rdf_type'])))
 
-# Object-to-RDF function, updated to handle lists, literals, objects, and dynamic URI templates
-def object_to_rdf(obj, base_uri="http://example.org/"):
-    # Create an RDF graph
-    graph = Graph()
+    for prop_name, prop_value in class_instance.__dict__.items():
+        # skip if variable is None
+        if prop_value is None:
+            continue
 
-    # Get RDF type and URI template from class metadata
-    rdf_type = getattr(obj.__class__, '_rdf_type', None)
-    uri_template = getattr(obj.__class__, '_uri_template', None)
-
-    # Build the URI for the object using dynamic template resolution
-    obj_uri = URIRef(build_uri_from_template(obj, uri_template))
-
-    # Add RDF type for the object
-    if rdf_type:
-        graph.add((obj_uri, RDF.type, URIRef(rdf_type)))
-
-    # Iterate over the attributes of the object
-    for attr_name in dir(obj):
-        attr_value = getattr(obj, attr_name, None)
-        attr_method = getattr(obj.__class__, attr_name, None)
-        
-        attr_method = getattr(attr_method, "fget", None)
-
-        # Check if this attribute has an RDF predicate defined via annotation
-        if hasattr(attr_method, '_rdf_predicate') and attr_value is not None:
-            predicate = URIRef(attr_method._rdf_predicate)  # RDF predicate from annotation
-
-            # Handle cases where the attribute value is a list
-            if isinstance(attr_value, list):
-                for item in attr_value:
-                    if attr_method._is_literal:
-                        graph.add((obj_uri, predicate, Literal(item)))
-                    else:
-                        # Assume the object has an 'id' and a URI template
-                        item_uri = URIRef(build_uri_from_template(item, getattr(item.__class__, "_uri_template", None)))
-                        graph.add((obj_uri, predicate, item_uri))
-                        # Recursively add the referenced object to the graph
-                        graph += object_to_rdf(item, base_uri)
+        prop_spec = class_spec['properties'].get(prop_name)
+        if prop_spec:
+            print("prop_spec: ", prop_spec)
+            if prop_spec['is_literal']:
+                g.add((instance_uri, URIRef(prop_spec['predicate']), Literal(prop_value)))
             else:
-                # Handle literal or object predicates
-                if attr_method._is_literal:
-                    graph.add((obj_uri, predicate, Literal(attr_value)))
+                # if it is a list, iterate over each item
+                if isinstance(prop_value, list):
+                    for item in prop_value:
+                        # if the value is a string, perform mapping
+                        if isinstance(item, str):
+                            # attempt mapping, if it fails, use original value
+                            item_uri = URIRef(prop_spec['mapping'].get(item, item))
+                            g.add((instance_uri, URIRef(prop_spec['predicate']), item_uri))
+                        else:
+                            item_class_spec = specification['classes'][item.__class__.__name__]
+                            item_uri = generate_class_instance_uri(item_class_spec['uri_template'], item)
+                            g.add((instance_uri, URIRef(prop_spec['predicate']), item_uri))
+                            g = class_to_rdf(item, specification, g)
                 else:
-                    # Assume the object has an 'id' and a URI template
-                    obj_ref_uri = URIRef(build_uri_from_template(attr_value, attr_value.__class__._uri_template))
-                    graph.add((obj_uri, predicate, obj_ref_uri))
-                    # Recursively add the referenced object to the graph
-                    graph += object_to_rdf(attr_value, base_uri)
-
-    return graph
+                    item_class_spec = specification['classes'][prop_value.__class__.__name__]
+                    item_uri = generate_class_instance_uri(item_class_spec['uri_template'], prop_value)
+                    g.add((instance_uri, URIRef(prop_spec['predicate']), item_uri))
+                    g = class_to_rdf(prop_value, specification, g)
+    return g

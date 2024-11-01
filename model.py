@@ -1,46 +1,75 @@
-from rdf_serializer import rdf_class, rdf_property
-
-# Example mapping from local values to standardized codes
-INTEREST_MAPPINGS = {
-    "Reading": "http://example.org/interests/reading",
-    "Hiking": "http://example.org/interests/hiking",
-    "Traveling": "http://example.org/interests/traveling",
-    "Photography": "http://example.org/interests/photography"
+specification = {
+    'namespaces': {
+        'schema': 'http://schema.org/',
+        'ex': 'http://example.org/',
+        'foaf': 'http://xmlns.com/foaf/0.1/',
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        'rdfs': 'http://www.w3.org/2000/01/rdf-schema#'
+    },
+    'classes': {
+        'Person': {
+            'rdf_type': 'foaf:Person',
+            'uri_template': 'ex:person/{id}',
+            'properties': {
+                'first_name': {
+                    'predicate': 'foaf:firstName',
+                    'is_literal': True
+                },
+                'last_name': {
+                    'predicate': 'foaf:lastName',
+                    'is_literal': True
+                },
+                'age': {
+                    'predicate': 'foaf:age',
+                    'is_literal': True
+                },
+                'knows': {
+                    'predicate': 'foaf:knows',
+                    'is_literal': False
+                },
+                'interests': {
+                    'predicate': 'foaf:interest',
+                    'is_literal': False,
+                    'mapping': {
+                        'Reading': 'ex:Reading',
+                        'Hiking': 'ex:Hiking',
+                        'Traveling': 'ex:Traveling',
+                        'Photography': 'ex:Photography'
+                    }
+                },
+                'pets': {
+                    'predicate': 'schema:owns',
+                    'is_literal': False
+                }
+            }
+        },
+        'Pet': {
+            'rdf_type': 'schema:Pet',
+            'uri_template': 'ex:pet/{name}',
+            'properties': {
+                'name': {
+                    'predicate': 'schema:name',
+                    'is_literal': True
+                },
+                'owner': {
+                    'predicate': 'schema:owner',
+                    'is_literal': False
+                }
+            }
+        }
+    }
 }
 
-# Example usage of rdf_class and rdf_property decorators
-@rdf_class(rdf_type="http://xmlns.com/foaf/0.1/Person", uri_template="http://example.org/person/{id}-{first_name}")
 class Person:
-    def __init__(self, id, first_name, last_name, age=None, knows=None, interests=None):
+    def __init__(self, id, first_name, last_name, age=None, knows=None, interests=None, pets=None):
         self.id: int = id
-        self._first_name: str = first_name
-        self._last_name: str = last_name
-        self._age: int = age
-        self._knows: list['Person'] = knows
-        self._interests: list[str] = interests
-    
-    # Getter
-    @rdf_property("http://xmlns.com/foaf/0.1/firstName", is_literal=True)
-    def first_name(self) -> str:
-        return self._first_name
-    
-    # Getter
-    @rdf_property("http://xmlns.com/foaf/0.1/lastName", is_literal=True)
-    def last_name(self) -> str:
-        return self._last_name
-    
-    # Getter
-    @rdf_property("http://xmlns.com/foaf/0.1/age", is_literal=True)
-    def age(self) -> int:
-        return self._age
-    
-    # Getter
-    @rdf_property("http://xmlns.com/foaf/0.1/knows", is_literal=False)
-    def knows(self) -> list['Person']:
-        return self._knows
-    
-    # Getter
-    @rdf_property("http://xmlns.com/foaf/0.1/interest", is_literal=False)
-    def interests(self) -> list[str]:
-        # return self._interests
-        return [INTEREST_MAPPINGS.get(value, value) for value in self._interests]
+        self.first_name: str = first_name
+        self.last_name: str = last_name
+        self.age: int = age
+        self.knows: list['Person'] = knows
+        self.interests: list['str'] = interests
+        self.pets: list['Pet'] = pets
+class Pet:
+    def __init__(self, name, owner):
+        self.name: str = name
+        self.owner: Person = owner
