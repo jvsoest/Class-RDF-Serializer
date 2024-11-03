@@ -1,4 +1,5 @@
-from model import Person, Pet, specification
+from model import Person, Pet
+import model
 from rdf_serializer import class_to_rdf
 
 # Test with Person knowing another Person and having multiple interests
@@ -8,7 +9,7 @@ pet1 = Pet(name="Fluffy", owner=person2)
 person2.pets = [pet1]
 
 # Convert the objects to RDF
-person_rdf = class_to_rdf(person2, specification)
+person_rdf = class_to_rdf(person2, model.specification)
 
 # Serialize to Turtle format for display
 print(person_rdf.serialize(format='turtle'))
