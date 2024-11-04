@@ -72,7 +72,12 @@ def class_to_rdf(class_instance, specification, g=Graph()) -> Graph:
         prop_spec = class_spec['properties'].get(prop_name)
         if prop_spec:
             if prop_spec['is_literal']:
-                g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), Literal(prop_value)))
+                # attempt mapping, if it fails, use original value
+                literal_value = prop_value
+                if 'mapping' in prop_spec:
+                    literal_value = prop_spec['mapping'].get(literal_value, literal_value)
+                
+                g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), Literal(literal_value)))
             else:
                 # if it is a list, iterate over each item
                 if isinstance(prop_value, list):
@@ -80,7 +85,11 @@ def class_to_rdf(class_instance, specification, g=Graph()) -> Graph:
                         # if the value is a string, perform mapping
                         if isinstance(item, str):
                             # attempt mapping, if it fails, use original value
-                            item_uri = URIRef_replace_prefix(prop_spec['mapping'].get(item, item), g)
+                            literal_value = item
+                            if 'mapping' in prop_spec:
+                                literal_value = prop_spec['mapping'].get(literal_value, literal_value)
+                            
+                            item_uri = URIRef_replace_prefix(literal_value, g)
                             g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), item_uri))
                         else:
                             item_class_spec = specification['classes'][item.__class__.__name__]
@@ -89,7 +98,12 @@ def class_to_rdf(class_instance, specification, g=Graph()) -> Graph:
                             g = class_to_rdf(item, specification, g)
                 else:
                     if isinstance(prop_value, str):
-                        item_uri = URIRef_replace_prefix(prop_spec['mapping'].get(prop_value, prop_value), g)
+                        # attempt mapping, if it fails, use original value
+                        literal_value = prop_value
+                        if 'mapping' in prop_spec:
+                            literal_value = prop_spec['mapping'].get(literal_value, literal_value)
+                        
+                        item_uri = URIRef_replace_prefix(literal_value, g)
                         g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), item_uri))
                     else:
                         item_class_spec = specification['classes'][prop_value.__class__.__name__]
