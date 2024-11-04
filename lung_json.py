@@ -10,6 +10,45 @@
 ####################################################################################
 from datetime import datetime
 
+class Patient:
+    def __init__(self, id, diseases = None):
+        self.id: int = id
+        self.diseases: list['Disease'] = diseases
+    
+class Disease:
+    def __init__(self, patient, overall_stage, t_stage, n_stage, m_stage, diagnosis_date):
+        self.overall_stage: OverallStage = overall_stage
+        self.t_stage: TStage = t_stage
+        self.n_stage: NStage = n_stage
+        self.m_stage: MStage = m_stage
+        self.diagnosis_date: DiagnosisDate = diagnosis_date
+        self.patient: Patient = patient
+
+class OverallStage:
+    def __init__(self, disease, stage):
+        self.disease: Disease = disease
+        self.stage: str = stage
+
+class TStage:
+    def __init__(self, disease, stage):
+        self.disease: Disease = disease
+        self.stage: str = stage
+
+class NStage:
+    def __init__(self, disease, stage):
+        self.disease: Disease = disease
+        self.stage: str = stage
+
+class MStage:
+    def __init__(self, disease, stage):
+        self.disease: Disease = disease
+        self.stage: str = stage
+
+class DiagnosisDate:
+    def __init__(self, disease, date):
+        self.disease: Disease = disease
+        self.date: datetime = date
+
 specification = {
     'namespaces': {
         'schema': 'http://schema.org/',
@@ -160,46 +199,6 @@ specification = {
     }
 }
 
-class Patient:
-    def __init__(self, id, diseases = None):
-        self.id: int = id
-        self.diseases: list['Disease'] = diseases
-    
-class Disease:
-    def __init__(self, patient, overall_stage, t_stage, n_stage, m_stage, diagnosis_date):
-        self.overall_stage: OverallStage = overall_stage
-        self.t_stage: TStage = t_stage
-        self.n_stage: NStage = n_stage
-        self.m_stage: MStage = m_stage
-        self.diagnosis_date: DiagnosisDate = diagnosis_date
-        self.patient: Patient = patient
-
-class OverallStage:
-    def __init__(self, disease, stage):
-        self.disease: Disease = disease
-        self.stage: str = stage
-
-class TStage:
-    def __init__(self, disease, stage):
-        self.disease: Disease = disease
-        self.stage: str = stage
-
-class NStage:
-    def __init__(self, disease, stage):
-        self.disease: Disease = disease
-        self.stage: str = stage
-
-class MStage:
-    def __init__(self, disease, stage):
-        self.disease: Disease = disease
-        self.stage: str = stage
-
-class DiagnosisDate:
-    def __init__(self, disease, date):
-        self.disease: Disease = disease
-        self.date: datetime = date
-
-
 ####################################################################################
 # Create instances (which is part of the ETL script, can be made with ChatGPT if you
 # know the source and target structure
@@ -225,6 +224,10 @@ disease.t_stage.disease = disease
 disease.n_stage.disease = disease
 disease.m_stage.disease = disease
 disease.diagnosis_date.disease = disease
+
+####################
+# Serialize to RDF #
+####################
 
 import rdf_serializer
 print(rdf_serializer.class_to_rdf(patient, specification).serialize(format="turtle"))
