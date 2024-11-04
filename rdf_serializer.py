@@ -2,6 +2,11 @@ import re
 from rdflib import Graph, URIRef, Literal
 from rdflib.namespace import RDF
 
+def get_nested_attr(obj, attr):
+    for part in attr.split('|'):
+        obj = getattr(obj, part)
+    return obj
+
 def generate_class_instance_uri(uri_template, class_instance, g) -> URIRef:
     """
     This function generates a URI for a class instance based on a URI template.
@@ -14,8 +19,8 @@ def generate_class_instance_uri(uri_template, class_instance, g) -> URIRef:
         A URIRef object representing the URI of the class instance.
     """
     # uri_template = class_spec['uri_template']
-    variables = re.findall(r'\{(\w+)\}', uri_template)
-    uri_values = {var: getattr(class_instance, var) for var in variables}
+    variables = re.findall(r'\{([\w\|]+)\}', uri_template)
+    uri_values = {var: get_nested_attr(class_instance, var) for var in variables}
     class_uri = URIRef_replace_prefix(uri_template.format(**uri_values), g)
     return class_uri
 
@@ -83,8 +88,12 @@ def class_to_rdf(class_instance, specification, g=Graph()) -> Graph:
                             g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), item_uri))
                             g = class_to_rdf(item, specification, g)
                 else:
-                    item_class_spec = specification['classes'][prop_value.__class__.__name__]
-                    item_uri = generate_class_instance_uri(item_class_spec['uri_template'], prop_value, g)
-                    g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), item_uri))
-                    g = class_to_rdf(prop_value, specification, g)
+                    if isinstance(prop_value, str):
+                        item_uri = URIRef_replace_prefix(prop_spec['mapping'].get(prop_value, prop_value), g)
+                        g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), item_uri))
+                    else:
+                        item_class_spec = specification['classes'][prop_value.__class__.__name__]
+                        item_uri = generate_class_instance_uri(item_class_spec['uri_template'], prop_value, g)
+                        g.add((instance_uri, URIRef_replace_prefix(prop_spec['predicate'], g), item_uri))
+                        g = class_to_rdf(prop_value, specification, g)
     return g
